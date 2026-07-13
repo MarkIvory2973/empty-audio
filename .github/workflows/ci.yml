@@ -35,11 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ linux, windows, darwin ]
+        os: [ linux ]
         arch: [ arm64, amd64, 386 ]
-        exclude:
-          - os: darwin
-            arch: 386
     steps:
       - uses: actions/checkout@main
 
@@ -63,17 +60,11 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: make build
 
-      - if: ${{ matrix.os == 'linux' }}
-        name: Package
+      - name: Package
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
         run: make package
-
-      - if: ${{ matrix.os != 'windows' }}
-        run: mv dist/empty-audio dist/empty-audio_${{ matrix.os }}_${{ matrix.arch }}
-      - if: ${{ matrix.os == 'windows' }}
-        run: mv dist/empty-audio dist/empty-audio_${{ matrix.os }}_${{ matrix.arch }}.exe
 
       - uses: actions/upload-artifact@v7
         with:
