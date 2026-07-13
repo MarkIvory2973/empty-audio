@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    tags: v*.*.*
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: src/go.mod
+          cache-dependency-path: src/go.sum
+
+      - name: Install
+        run: make install
+
+      - name: Test
+        run: make test
+
+  build:
+    needs: test
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ linux, windows, darwin ]
+        arch: [ arm64, amd64, 386 ]
+        exclude:
+          - os: darwin
+            arch: 386
+    steps:
+      - uses: actions/checkout@main
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: src/go.mod
+          cache-dependency-path: src/go.sum
+
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl
+
+      - name: Install
+        run: make install
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: make build
+
+      - if: ${{ matrix.os == 'linux' }}
+        name: Package
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: make package
+
+      - if: ${{ matrix.os != 'windows' }}
+        run: mv dist/empty-audio dist/empty-audio_${{ matrix.os }}_${{ matrix.arch }}
+      - if: ${{ matrix.os == 'windows' }}
+        run: mv dist/empty-audio dist/empty-audio_${{ matrix.os }}_${{ matrix.arch }}.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build_${{ matrix.os }}_${{ matrix.arch }}
+          path: dist/
+
+  release:
+    needs: build
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          pattern: build_*_*
+          merge-multiple: true
+
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: true
+          name: Empty Audio ${{ github.ref_name }}
+          files: dist/*
