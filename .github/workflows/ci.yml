@@ -39,14 +39,16 @@ jobs:
     steps:
       - uses: actions/checkout@main
 
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y portaudio19-dev
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: src/go.mod
           cache-dependency-path: src/go.sum
 
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y upx-ucl
+      - run: sudo apt-get install -y upx-ucl
 
       - name: Install
         run: make install
